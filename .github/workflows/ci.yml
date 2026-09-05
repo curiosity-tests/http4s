@@ -8,6 +8,21 @@
 name: Continuous Integration
 
 on:
+  workflow_dispatch:
+    inputs:
+      leg:
+        description: "baseline (uninstrumented) or instrumented (under chalk/curiosity)"
+        type: choice
+        options: [instrumented, baseline]
+        default: instrumented
+      profile:
+        description: "CrashOverride chalk profile"
+        type: string
+        default: curiosity-tests-racecar
+      racecar_run:
+        description: "racecar correlation token, echoed into the run name"
+        type: string
+        default: ""
   pull_request:
     branches: ['**', '!update/**', '!pr/**']
   push:
@@ -15,12 +30,21 @@ on:
     tags: [v*]
 
 env:
+  # The one variable that separates the arms: on baseline, action-checkout
+  # skips its Set up Chalk step entirely.
+  CHALK_ON: ${{ github.event_name == 'workflow_dispatch' && inputs.leg != 'baseline' }}
   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
 
 concurrency:
-  group: ${{ github.workflow }} @ ${{ github.ref }}
-  cancel-in-progress: true
+  group: ${{ github.workflow }} @ ${{ github.ref }}-${{ inputs.leg || 'push' }}-${{ inputs.racecar_run }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  id-token: write
+
+run-name: "Continuous Integration ${{ inputs.leg || 'push' }} ${{ inputs.racecar_run }}"
 
 jobs:
   build:
@@ -56,9 +80,18 @@ jobs:
         uses: cachix/install-nix-action@v27
 
       - name: Checkout current branch (full)
-        uses: actions/checkout@v6
+        uses: crashappsec/action-checkout@main
         with:
+          chalk: ${{ env.CHALK_ON }}
+          profile: ${{ inputs.profile || 'curiosity-tests-racecar' }}
+          observables_continue_on_error: false
+          lfs: false
           fetch-depth: 0
+      - name: Assert instrumentation is live
+        if: env.CHALK_ON == 'true'
+        run: |
+          test -n "${CURIOSITY_ROOT:-}" || { echo "::error::CURIOSITY_ROOT unset - observables never installed"; exit 1; }
+          test -S "${CURIOSITY_SOCKET_NAME:?socket name unset}" || { echo "::error::co-hostd socket absent"; exit 1; }
 
       - name: Setup sbt
         uses: sbt/setup-sbt@v1
@@ -141,6 +174,7 @@ jobs:
     needs: [build]
     if: github.event_name != 'pull_request' && (startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/series/0.23')
     strategy:
+      fail-fast: false
       matrix:
         os: [ubuntu-22.04]
         java: [temurin@8]
@@ -150,9 +184,18 @@ jobs:
         uses: cachix/install-nix-action@v27
 
       - name: Checkout current branch (full)
-        uses: actions/checkout@v6
+        uses: crashappsec/action-checkout@main
         with:
+          chalk: ${{ env.CHALK_ON }}
+          profile: ${{ inputs.profile || 'curiosity-tests-racecar' }}
+          observables_continue_on_error: false
+          lfs: false
           fetch-depth: 0
+      - name: Assert instrumentation is live
+        if: env.CHALK_ON == 'true'
+        run: |
+          test -n "${CURIOSITY_ROOT:-}" || { echo "::error::CURIOSITY_ROOT unset - observables never installed"; exit 1; }
+          test -S "${CURIOSITY_SOCKET_NAME:?socket name unset}" || { echo "::error::co-hostd socket absent"; exit 1; }
 
       - name: Setup sbt
         uses: sbt/setup-sbt@v1
@@ -224,6 +267,7 @@ jobs:
     name: Submit Dependencies
     if: github.event.repository.fork == false && github.event_name != 'pull_request'
     strategy:
+      fail-fast: false
       matrix:
         os: [ubuntu-22.04]
         java: [temurin@8]
@@ -233,9 +277,18 @@ jobs:
         uses: cachix/install-nix-action@v27
 
       - name: Checkout current branch (full)
-        uses: actions/checkout@v6
+        uses: crashappsec/action-checkout@main
         with:
+          chalk: ${{ env.CHALK_ON }}
+          profile: ${{ inputs.profile || 'curiosity-tests-racecar' }}
+          observables_continue_on_error: false
+          lfs: false
           fetch-depth: 0
+      - name: Assert instrumentation is live
+        if: env.CHALK_ON == 'true'
+        run: |
+          test -n "${CURIOSITY_ROOT:-}" || { echo "::error::CURIOSITY_ROOT unset - observables never installed"; exit 1; }
+          test -S "${CURIOSITY_SOCKET_NAME:?socket name unset}" || { echo "::error::co-hostd socket absent"; exit 1; }
 
       - name: Setup sbt
         uses: sbt/setup-sbt@v1
@@ -288,13 +341,24 @@ jobs:
   validate-steward:
     name: Validate Steward Config
     strategy:
+      fail-fast: false
       matrix:
         os: [ubuntu-22.04]
         java: [temurin@17]
     runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout current branch (fast)
-        uses: actions/checkout@v6
+        uses: crashappsec/action-checkout@main
+        with:
+          chalk: ${{ env.CHALK_ON }}
+          profile: ${{ inputs.profile || 'curiosity-tests-racecar' }}
+          observables_continue_on_error: false
+          lfs: false
+      - name: Assert instrumentation is live
+        if: env.CHALK_ON == 'true'
+        run: |
+          test -n "${CURIOSITY_ROOT:-}" || { echo "::error::CURIOSITY_ROOT unset - observables never installed"; exit 1; }
+          test -S "${CURIOSITY_SOCKET_NAME:?socket name unset}" || { echo "::error::co-hostd socket absent"; exit 1; }
 
       - name: Setup Java (temurin@17)
         id: setup-java-temurin-17
@@ -313,6 +377,7 @@ jobs:
   site:
     name: Generate Site
     strategy:
+      fail-fast: false
       matrix:
         os: [ubuntu-22.04]
         java: [temurin@11]
@@ -322,9 +387,18 @@ jobs:
         uses: cachix/install-nix-action@v27
 
       - name: Checkout current branch (full)
-        uses: actions/checkout@v6
+        uses: crashappsec/action-checkout@main
         with:
+          chalk: ${{ env.CHALK_ON }}
+          profile: ${{ inputs.profile || 'curiosity-tests-racecar' }}
+          observables_continue_on_error: false
+          lfs: false
           fetch-depth: 0
+      - name: Assert instrumentation is live
+        if: env.CHALK_ON == 'true'
+        run: |
+          test -n "${CURIOSITY_ROOT:-}" || { echo "::error::CURIOSITY_ROOT unset - observables never installed"; exit 1; }
+          test -S "${CURIOSITY_SOCKET_NAME:?socket name unset}" || { echo "::error::co-hostd socket absent"; exit 1; }
 
       - name: Setup sbt
         uses: sbt/setup-sbt@v1
