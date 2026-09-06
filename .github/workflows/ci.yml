@@ -32,7 +32,7 @@ on:
 env:
   # The one variable that separates the arms: on baseline, action-checkout
   # skips its Set up Chalk step entirely.
-  CHALK_ON: ${{ github.event_name == 'workflow_dispatch' && inputs.leg != 'baseline' }}
+  CHALK_ON: ${{ inputs.leg == 'instrumented' }}
   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
 
@@ -172,7 +172,7 @@ jobs:
   publish:
     name: Publish Artifacts
     needs: [build]
-    if: github.event_name != 'pull_request' && (startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/series/0.23')
+    if: ${{ 'push' != 'pull_request' && (startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/series/0.23') }}
     strategy:
       fail-fast: false
       matrix:
@@ -265,7 +265,7 @@ jobs:
 
   dependency-submission:
     name: Submit Dependencies
-    if: github.event.repository.fork == false && github.event_name != 'pull_request'
+    if: true && 'push' != 'pull_request'
     strategy:
       fail-fast: false
       matrix:
@@ -446,7 +446,7 @@ jobs:
         run: 'nix develop .#${{ matrix.java }} -c sbt site/tlSite'
 
       - name: Publish site
-        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/series/0.23'
+        if: ${{ 'push' != 'pull_request' && github.ref == 'refs/heads/series/0.23' }}
         uses: peaceiris/actions-gh-pages@v4.0.0
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
