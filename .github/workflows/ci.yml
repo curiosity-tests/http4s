@@ -265,7 +265,7 @@ jobs:
 
   dependency-submission:
     name: Submit Dependencies
-    if: true && 'push' != 'pull_request'
+    if: github.event.repository.fork == false && 'push' != 'pull_request'
     strategy:
       fail-fast: false
       matrix:
