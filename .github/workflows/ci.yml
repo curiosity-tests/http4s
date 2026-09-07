@@ -450,7 +450,7 @@ jobs:
         run: 'nix develop .#${{ matrix.java }} -c sbt site/tlSite'
 
       - name: Publish site
-        if: ${{ 'push' != 'pull_request' && github.ref == 'refs/heads/series/0.23' }}
+        if: ${{ github.repository == 'http4s/http4s' && ('push' != 'pull_request' && github.ref == 'refs/heads/series/0.23') }}
         uses: peaceiris/actions-gh-pages@v4.0.0
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
