@@ -176,7 +176,11 @@ jobs:
   publish:
     name: Publish Artifacts
     needs: [build]
-    if: ${{ 'push' != 'pull_request' && (startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/series/0.23') }}
+    # Artifact publishing (sbt tlCiRelease -> Sonatype) must NOT run from this fork.
+    # The only upstream guard here is the release-branch ref, and our baseline is
+    # dispatched on exactly that branch, so the job armed a real Maven Central publish
+    # of every module. Gate it off by canonical repo identity.
+    if: ${{ github.repository == 'http4s/http4s' && 'push' != 'pull_request' && (startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/series/0.23') }}
     strategy:
       fail-fast: false
       matrix:
